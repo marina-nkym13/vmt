@@ -21,6 +21,7 @@ export const controlEvents = {
   MSG_RELEASED_CONTROL: 'MSG_RELEASED_CONTROL',
   RESET: 'RESET',
   SWITCH_TAB: 'SWITCH_TAB',
+  SWITCH_STRATEGY: 'SWITCH_STRATEGY',
 };
 
 export const buttonConfigs = {
@@ -149,6 +150,111 @@ const iCancelRequest = (context, event) => {
   );
 };
 
+const controlledByMe = () => {
+  assign({
+    controlledBy: (c) => c.userId,
+    buttonConfig: buttonConfigs[controlStates.ME],
+  });
+};
+
+const controlledByOther = () => {
+  assign({
+    controlledBy: (_, event) => event.id,
+    buttonConfig: buttonConfigs[controlStates.OTHER],
+  });
+};
+
+const controlledByNone = () => {
+  assign({
+    controlledBy: null,
+    buttonConfig: buttonConfigs[controlStates.NONE],
+  });
+};
+
+const controlRequested = () => {
+  assign({
+    buttonConfig: buttonConfigs[controlStates.REQUESTED],
+  });
+};
+
+const cancelledRequest = () => {
+  assign({
+    buttonConfig: buttonConfigs[controlStates.CANCELLED_REQUEST],
+  });
+};
+
+const switchingTabs = () => {
+  assign({
+    currentTabId: (_, event) => event.tab,
+  });
+};
+
+const storeNull = () => {
+  assign({
+    controllers: (c, event) => ({
+      ...c.controllers,
+      [event.tab]: null,
+    }),
+  });
+};
+
+const storeController = () => {
+  assign({
+    controllers: (c, event) => ({
+      ...c.controllers,
+      [event.tab]: event.id,
+    }),
+  });
+};
+
+const setRestrictFlag = () => {
+  assign({
+    restrictFlags: (c) => ({
+      ...c.restrictFlags,
+      [c.currentTabId]: true,
+    }),
+  });
+};
+
+const controlledByMe_ind = () => {
+  assign({
+    controlledBy: (c) => c.userId,
+    controllers: (c) => ({
+      ...c.controllers,
+      [c.currentTabId]: null,
+    }),
+    buttonConfig: buttonConfigs[controlStates.ME],
+  });
+};
+
+const controlledByOther_ind = () => {
+  assign({
+    controlledBy: (c) => c.controllers[c.currentTabId],
+    buttonConfig: buttonConfigs[controlStates.OTHER],
+  });
+};
+
+const controlledByNone_ind = () => {
+  assign({
+    controlledBy: null,
+    controllers: (c) => ({
+      ...c.controllers,
+      [c.currentTabId]: null,
+    }),
+    buttonConfig: buttonConfigs[controlStates.NONE],
+  });
+};
+
+const cancelledRequest_ind = () => {
+  assign({
+    buttonConfig: buttonConfigs[controlStates.CANCELLED_REQUEST],
+    restrictFlags: (c) => ({
+      ...c.restrictFlags,
+      [c.currentTabId]: false,
+    }),
+  });
+};
+
 const defaultControlMachineSpec = (initial, context) => {
   return [
     {
@@ -228,27 +334,12 @@ const defaultControlMachineSpec = (initial, context) => {
         iRequestControl,
         otherReleasesControl,
         iCancelRequest,
-        controlledByMe: assign({
-          controlledBy: (c) => c.userId,
-          buttonConfig: buttonConfigs[controlStates.ME],
-        }),
-        controlledByOther: assign({
-          controlledBy: (_, event) => event.id,
-          buttonConfig: buttonConfigs[controlStates.OTHER],
-        }),
-        controlledByNone: assign({
-          controlledBy: null,
-          buttonConfig: buttonConfigs[controlStates.NONE],
-        }),
-        controlRequested: assign({
-          buttonConfig: buttonConfigs[controlStates.REQUESTED],
-        }),
-        cancelledRequest: assign({
-          buttonConfig: buttonConfigs[controlStates.CANCELLED_REQUEST],
-        }),
-        switchingTabs: assign({
-          currentTabId: (_, event) => event.tab,
-        }),
+        controlledByMe,
+        controlledByOther,
+        controlledByNone,
+        controlRequested,
+        cancelledRequest,
+        switchingTabs,
       },
     },
   ];
@@ -287,7 +378,7 @@ const independentTabControlMachineSpec = (initial, context) => {
       },
       states: {
         [controlStates.NONE]: {
-          entry: 'controlledByNone',
+          entry: 'controlledByNone_ind',
           on: {
             [controlEvents.CLICK]: {
               target: controlStates.ME,
@@ -297,7 +388,7 @@ const independentTabControlMachineSpec = (initial, context) => {
           },
         },
         [controlStates.ME]: {
-          entry: 'controlledByMe',
+          entry: 'controlledByMe_ind',
           on: {
             [controlEvents.CLICK]: {
               target: controlStates.NONE,
@@ -314,7 +405,7 @@ const independentTabControlMachineSpec = (initial, context) => {
           },
         },
         [controlStates.OTHER]: {
-          entry: 'controlledByOther',
+          entry: 'controlledByOther_ind',
           on: {
             [controlEvents.CLICK]: {
               target: controlStates.REQUESTED,
@@ -340,7 +431,7 @@ const independentTabControlMachineSpec = (initial, context) => {
           },
         },
         [controlStates.CANCELLED_REQUEST]: {
-          entry: 'cancelledRequest',
+          entry: 'cancelledRequest_ind',
           on: {
             [controlEvents.SWITCH_TAB]: {
               target: controlStates.SWITCHING_TABS,
@@ -383,60 +474,78 @@ const independentTabControlMachineSpec = (initial, context) => {
         iRequestControl,
         otherReleasesControl,
         iCancelRequest,
-        storeNull: assign({
-          controllers: (c, event) => ({
-            ...c.controllers,
-            [event.tab]: null,
-          }),
-        }),
-        storeController: assign({
-          controllers: (c, event) => ({
-            ...c.controllers,
-            [event.tab]: event.id,
-          }),
-        }),
-        setRestrictFlag: assign({
-          restrictFlags: (c) => ({
-            ...c.restrictFlags,
-            [c.currentTabId]: true,
-          }),
-        }),
-        switchingTabs: assign({
-          currentTabId: (_, event) => event.tab,
-        }),
-        controlledByMe: assign({
-          controlledBy: (c) => c.userId,
-          controllers: (c) => ({
-            ...c.controllers,
-            [c.currentTabId]: null,
-          }),
-          buttonConfig: buttonConfigs[controlStates.ME],
-        }),
-        controlledByOther: assign({
-          controlledBy: (c) => c.controllers[c.currentTabId],
-          buttonConfig: buttonConfigs[controlStates.OTHER],
-        }),
-        controlledByNone: assign({
-          controlledBy: null,
-          controllers: (c) => ({
-            ...c.controllers,
-            [c.currentTabId]: null,
-          }),
-          buttonConfig: buttonConfigs[controlStates.NONE],
-        }),
-        controlRequested: assign({
-          buttonConfig: buttonConfigs[controlStates.REQUESTED],
-        }),
-        cancelledRequest: assign({
-          buttonConfig: buttonConfigs[controlStates.CANCELLED_REQUEST],
-          restrictFlags: (c) => ({
-            ...c.restrictFlags,
-            [c.currentTabId]: false,
-          }),
-        }),
+        storeNull,
+        storeController,
+        setRestrictFlag,
+        switchingTabs,
+        controlledByMe_ind,
+        controlledByOther_ind,
+        controlledByNone_ind,
+        controlRequested,
+        cancelledRequest_ind,
       },
     },
   ];
+};
+
+const combinedMachineSpec = (initial, context) => {
+  const { strategy, ...sharedContext } = context;
+
+  const defaultSpec = defaultControlMachineSpec(initial, sharedContext);
+  const independentSpec = independentTabControlMachineSpec(
+    initial,
+    sharedContext
+  );
+
+  // Update action references in defaultSpec
+  const updatedDefaultSpec = [
+    {
+      ...defaultSpec[0],
+      on: {
+        ...defaultSpec[0].on,
+        [controlEvents.SWITCH_STRATEGY]: {
+          target: controlStates.NONE,
+        },
+      },
+    },
+    defaultSpec[1],
+  ];
+
+  // Update action references in independentSpec
+  const updatedIndependentSpec = [
+    {
+      ...independentSpec[0],
+      on: {
+        ...independentSpec[0].on,
+        [controlEvents.SWITCH_STRATEGY]: {
+          target: controlStates.NONE,
+        },
+      },
+    },
+    independentSpec[1],
+  ];
+
+  return {
+    initial,
+    context: sharedContext,
+    states: {
+      control: {
+        initial: strategy === 'default' ? 'default' : 'independent',
+        states: {
+          default: updatedDefaultSpec[0].states,
+          independent: updatedIndependentSpec[0].states,
+        },
+      },
+    },
+    on: {
+      ...updatedDefaultSpec[0].on,
+      ...updatedIndependentSpec[0].on,
+    },
+    actions: {
+      ...updatedDefaultSpec[1].actions,
+      ...updatedIndependentSpec[1].actions,
+    },
+  };
 };
 
 /**
@@ -478,6 +587,9 @@ export function useControlMachine(context, spec) {
 export function withControlMachine(Component) {
   const ControlMachine = (props) => {
     const { populatedRoom, user } = props;
+    const [controlStrategy, setControlStrategy] = React.useState(
+      Room.getRoomSetting(populatedRoom, Room.TAB_BASED_CONTROL)
+    );
     const [state, send] = useControlMachine(
       {
         userId: user._id,
@@ -490,11 +602,23 @@ export function withControlMachine(Component) {
           {}
         ),
         restrictFlags: {},
+        strategy: controlStrategy ? 'independent' : 'default',
       },
-      Room.getRoomSetting(populatedRoom, Room.TAB_BASED_CONTROL)
-        ? independentTabControlMachineSpec
-        : defaultControlMachineSpec
+      combinedMachineSpec
     );
+
+    React.useEffect(() => {
+      if (
+        controlStrategy !==
+        Room.getRoomSetting(populatedRoom, Room.TAB_BASED_CONTROL)
+      ) {
+        setControlStrategy(
+          Room.getRoomSetting(populatedRoom, Room.TAB_BASED_CONTROL)
+        );
+        send(controlEvents.SWITCH_STRATEGY);
+      }
+    }, [populatedRoom]);
+
     return (
       <Component controlState={state} sendControlEvent={send} {...props} />
     );
